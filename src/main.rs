@@ -16,7 +16,12 @@ async fn get_file_full_path(req_file_path: &str) -> String {
     let year: String = now.format("%Y").to_string();
     let month: String = now.format("%m").to_string();
     let day: String = now.format("%d").to_string();
-    let full_dir: String = format!("{}/{}/{}/{}", FILE_DIR, year, month, day);
+    let hour: String = now.format("%H").to_string();
+    let minute: String = now.format("%M").to_string();
+    let full_dir: String = format!(
+        "{}/{}/{}/{}/{}/{}",
+        FILE_DIR, year, month, day, hour, minute
+    );
     let full_path: String = format!("{}{}", full_dir, req_file_path);
     let dir_path: PathBuf = PathBuf::from(&full_dir);
     let _ = tokio::fs::create_dir_all(&dir_path).await;
