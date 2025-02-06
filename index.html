@@ -205,28 +205,39 @@
       }
 
       function loadHistory() {
+        const loading = document.getElementById('loading');
+        loading.textContent = '加载历史中，请稍候...';
+        loading.style.display = 'flex';
         const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
         const MAX_FILENAME_LENGTH = 20;
-        document.getElementById('history_list').innerHTML = history
-          .map(
-            (item, index) => `
+        try {
+          document.getElementById('history_list').innerHTML = history
+            .map(
+              (item, index) => `
             <div class="history-item" data-url="${
               item.url
             }" onclick="openHistory(this)">
                 <span class="file-name" title="${item.name}">${truncateMiddle(
-              item.name,
-              MAX_FILENAME_LENGTH
-            )}</span>
+                item.name,
+                MAX_FILENAME_LENGTH
+              )}</span>
                 <div class="right-info">
                     <span class="upload-time">耗时: ${item.cost ?? '未知'}${
-              item.cost ? 'ms' : ''
-            }</span>
+                item.cost ? 'ms' : ''
+              }</span>
                     <button onclick="deleteHistory(${index}); event.stopPropagation();">删除</button>
                 </div>
             </div>
         `
-          )
-          .join('');
+            )
+            .join('');
+        } catch {
+          alert('加载历史失败');
+        } finally {
+          setTimeout(() => {
+            loading.style.display = 'none';
+          }, 360);
+        }
       }
 
       function saveToHistory(name, url, cost) {
