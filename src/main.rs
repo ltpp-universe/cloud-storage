@@ -4,8 +4,8 @@ use rand::TryRngCore;
 use sha2::{Digest, Sha256};
 use tokio::fs::metadata;
 
-const FILE_DIR: &str = "/home/picture_bed/file";
-const LOG_DIR: &str = "/home/picture_bed/logs";
+const FILE_DIR: &str = "/home/cloud_storage/file";
+const LOG_DIR: &str = "/home/cloud_storage/logs";
 const FILE_MAX_SIZE: usize = 1_024_000_0;
 const CHARSET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_=";
 const PROTOCOL_DOMAIN_NAME: &str = "https://file.ltpp.vip";
