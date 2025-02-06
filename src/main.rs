@@ -6,7 +6,7 @@ use tokio::fs::metadata;
 
 const FILE_DIR: &str = "/home/cloud_storage/file";
 const LOG_DIR: &str = "/home/cloud_storage/logs";
-const FILE_MAX_SIZE: usize = 1_024_000_0;
+const FILE_MAX_SIZE: usize = 4_194_304;
 const CHARSET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_=";
 const PROTOCOL_DOMAIN_NAME: &str = "https://file.ltpp.vip";
 const FILE_NAME_KEY: &str = "file_name";
