@@ -188,10 +188,13 @@
     </div>
 
     <script>
+      var uploadHistoryKey = 'uploadHistory';
+      var MAX_FILENAME_LENGTH = 20;
+
       function truncateMiddle(str, max_length) {
         if (str.length <= max_length) return str;
-        const left_length = Math.floor((max_length - 3) / 2);
-        const right_length = max_length - 3 - left_length;
+        var left_length = Math.floor((max_length - 3) / 2);
+        var right_length = max_length - 3 - left_length;
         return (
           str.substring(0, left_length) +
           '...' +
@@ -200,16 +203,20 @@
       }
 
       function openHistory(element) {
-        const url = element.getAttribute('data-url');
+        var url = element.getAttribute('data-url');
         if (url) window.open(url, '_blank');
       }
 
       function loadHistory() {
-        const loading = document.getElementById('loading');
+        var loading = document.getElementById('loading');
         loading.textContent = '加载历史中，请稍候...';
         loading.style.display = 'flex';
-        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
-        const MAX_FILENAME_LENGTH = 20;
+        var history = [];
+        try {
+          history = JSON.parse(localStorage.getItem(uploadHistoryKey)) || [];
+        } catch {
+          clearHistory();
+        }
         try {
           document.getElementById('history_list').innerHTML = history
             .map(
@@ -232,6 +239,7 @@
             )
             .join('');
         } catch {
+          clearHistory();
           alert('加载历史失败');
         } finally {
           setTimeout(() => {
@@ -241,35 +249,45 @@
       }
 
       function saveToHistory(name, url, cost) {
-        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+        var history = [];
+        try {
+          history = JSON.parse(localStorage.getItem(uploadHistoryKey)) || [];
+        } catch {
+          clearHistory();
+        }
         history.unshift({ name, url, cost, time: Date.now() });
-        localStorage.setItem('uploadHistory', JSON.stringify(history));
+        localStorage.setItem(uploadHistoryKey, JSON.stringify(history));
         loadHistory();
       }
 
       function deleteHistory(index) {
-        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+        var history = [];
+        try {
+          history = JSON.parse(localStorage.getItem(uploadHistoryKey)) || [];
+        } catch {}
         history.splice(index, 1);
-        localStorage.setItem('uploadHistory', JSON.stringify(history));
+        localStorage.setItem(uploadHistoryKey, JSON.stringify(history));
         loadHistory();
       }
 
       function clearHistory() {
-        localStorage.removeItem('uploadHistory');
-        loadHistory();
+        try {
+          localStorage.removeItem(uploadHistoryKey);
+          loadHistory();
+        } catch {}
       }
 
       function exportHistory() {
-        const history = localStorage.getItem('uploadHistory') || '[]';
-        const blob = new Blob([history], { type: 'application/json' });
-        const now = new Date();
-        const pad = (num) => num.toString().padStart(2, '0');
-        const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
+        var history = localStorage.getItem(uploadHistoryKey) || '[]';
+        var blob = new Blob([history], { type: 'application/json' });
+        var now = new Date();
+        var pad = (num) => num.toString().padStart(2, '0');
+        var timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
           now.getDate()
         )}${pad(now.getHours())}${pad(now.getMinutes())}${pad(
           now.getSeconds()
         )}`;
-        const a = document.createElement('a');
+        var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = `${document.title}_${timestamp}.json`;
         document.body.appendChild(a);
@@ -278,26 +296,30 @@
       }
 
       function importHistory(event) {
-        const loading = document.getElementById('loading');
+        var loading = document.getElementById('loading');
         loading.textContent = '导入中，请稍候...';
         loading.style.display = 'flex';
 
-        const file = event.target.files[0];
+        var file = event.target.files[0];
         if (!file) return;
 
-        const reader = new FileReader();
+        var reader = new FileReader();
         reader.onload = (e) => {
           try {
-            const imported = JSON.parse(e.target.result);
+            var imported = JSON.parse(e.target.result);
             if (!Array.isArray(imported)) throw new Error();
-
-            const current = JSON.parse(
-              localStorage.getItem('uploadHistory') || '[]'
-            );
-            const merged = [...current, ...imported].sort(
+            var current = [];
+            try {
+              current = JSON.parse(
+                localStorage.getItem(uploadHistoryKey) || '[]'
+              );
+            } catch {
+              clearHistory();
+            }
+            var merged = [...current, ...imported].sort(
               (a, b) => b.time - a.time
             );
-            localStorage.setItem('uploadHistory', JSON.stringify(merged));
+            localStorage.setItem(uploadHistoryKey, JSON.stringify(merged));
             loadHistory();
           } catch {
             alert('导入失败，请检查文件格式');
@@ -315,15 +337,15 @@
       }
 
       async function uploadFile() {
-        const files = document.getElementById('file_input').files;
+        var files = document.getElementById('file_input').files;
         if (files.length === 0) return;
 
-        const loading = document.getElementById('loading');
+        var loading = document.getElementById('loading');
         loading.textContent = `上传中，请稍候... 剩余任务: ${files.length} / 总任务: ${files.length}`;
         loading.style.display = 'flex';
 
         let tasksLeft = files.length;
-        const updateCounter = () => {
+        var updateCounter = () => {
           loading.textContent = `上传中，请稍候... 剩余任务: ${tasksLeft} / 总任务: ${files.length}`;
         };
 
@@ -331,9 +353,9 @@
           await Promise.all(
             Array.from(files).map(async (file) => {
               try {
-                const start = performance.now();
-                const buffer = await file.arrayBuffer();
-                const res = await fetch(
+                var start = performance.now();
+                var buffer = await file.arrayBuffer();
+                var res = await fetch(
                   `https://file.ltpp.vip/add_file?file_name=${encodeURIComponent(
                     file.name
                   )}`,
@@ -343,7 +365,7 @@
                     body: buffer,
                   }
                 );
-                const data = await res.json();
+                var data = await res.json();
 
                 if (data.code === 1) {
                   saveToHistory(
