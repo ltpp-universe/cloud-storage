@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="https://ltpp.vip/logo.png" type="image/x-icon" />
+    <title>文件上传</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      .container {
+        max-width: 400px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      input {
+        display: none;
+      }
+      .upload-btn {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: block;
+        text-align: center;
+      }
+      .upload-btn:hover {
+        background: linear-gradient(45deg, #0056b3, #003d82);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+      }
+      .history {
+        margin-top: 20px;
+        text-align: left;
+      }
+      .history-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #fff;
+        padding: 10px;
+        margin: 5px 0;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      .history-item button {
+        background: red;
+        color: white;
+        padding: 5px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .clear-history-btn {
+        width: 100%;
+        padding: 10px;
+        background: linear-gradient(45deg, #ff4b5c, #ff1e42);
+        color: white;
+        border: none;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: block;
+        margin-top: 10px;
+      }
+      .clear-history-btn:hover {
+        background: linear-gradient(45deg, #ff1e42, #c70024);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+        transform: translateY(-2px);
+      }
+      .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        color: white;
+        font-size: 20px;
+        display: none;
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="loading" id="loading">上传中，请稍候...</div>
+    <div class="container">
+      <h2>文件上传</h2>
+      <input type="file" id="fileInput" onchange="uploadFile()" />
+      <button
+        class="upload-btn"
+        onclick="document.getElementById('fileInput').click()"
+      >
+        选择文件并上传
+      </button>
+      <div class="history">
+        <h3>上传历史</h3>
+        <button class="clear-history-btn" onclick="clearHistory()">
+          清空历史
+        </button>
+        <div id="historyList"></div>
+      </div>
+    </div>
+
+    <script>
+      function loadHistory() {
+        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+        history.sort((a, b) => b.time - a.time);
+        const historyList = document.getElementById('historyList');
+        historyList.innerHTML = history
+          .map(
+            (item, index) => `
+                <div class="history-item">
+                    <a href="${item.url}" target="_blank">${item.name}</a>
+                    <button onclick="deleteHistory(${index})">删除</button>
+                </div>
+            `
+          )
+          .join('');
+      }
+
+      function saveToHistory(name, url) {
+        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+        history.push({ name, url, time: Date.now() });
+        localStorage.setItem('uploadHistory', JSON.stringify(history));
+        loadHistory();
+      }
+
+      function deleteHistory(index) {
+        const history = JSON.parse(localStorage.getItem('uploadHistory')) || [];
+        history.splice(index, 1);
+        localStorage.setItem('uploadHistory', JSON.stringify(history));
+        loadHistory();
+      }
+
+      function clearHistory() {
+        localStorage.removeItem('uploadHistory');
+        loadHistory();
+      }
+
+      async function uploadFile() {
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput.files.length === 0) {
+          return;
+        }
+
+        document.getElementById('loading').style.display = 'flex';
+        const file = fileInput.files[0];
+        const fileName = file.name;
+        const arrayBuffer = await file.arrayBuffer();
+
+        try {
+          const response = await fetch(
+            'https://file.ltpp.vip/add_file?file_name=' +
+              encodeURIComponent(fileName),
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/octet-stream',
+              },
+              body: arrayBuffer,
+            }
+          );
+
+          const result = await response.json();
+          if (result.code === 1) {
+            saveToHistory(fileName, result.data);
+          }
+        } catch (error) {
+          alert('请求失败，请检查网络');
+        } finally {
+          document.getElementById('loading').style.display = 'none';
+        }
+
+        fileInput.value = '';
+      }
+
+      document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+  </body>
+</html>
