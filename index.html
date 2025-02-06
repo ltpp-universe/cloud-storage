@@ -185,6 +185,8 @@
           const result = await response.json();
           if (result.code === 1) {
             saveToHistory(fileName, result.data);
+          } else if (result.msg) {
+            alert(result.msg);
           }
         } catch (error) {
           alert('请求失败，请检查网络');
