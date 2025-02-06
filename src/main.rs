@@ -73,6 +73,9 @@ fn resp_json(
         .set_body(json_string.into())
         .set_status_code(200)
         .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))
+        .set_header("Access-Control-Allow-Origin", "*")
+        .set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        .set_header("Access-Control-Allow-Headers", "*")
         .send(&stream)
         .unwrap();
 }
@@ -98,6 +101,9 @@ fn resp_bin(
         .set_body(data)
         .set_status_code(status_code)
         .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))
+        .set_header("Access-Control-Allow-Origin", "*")
+        .set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        .set_header("Access-Control-Allow-Headers", "*")
         .send(&stream)
         .unwrap();
 }
