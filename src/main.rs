@@ -39,11 +39,6 @@ fn replace_prefix_with_hash(input: &str) -> String {
     format!("{}.{}", hash, suffix)
 }
 
-fn common_log(log_data: &String) -> String {
-    let write_data: String = format!("{}: {}\n", current_time(), log_data);
-    write_data.clone()
-}
-
 fn get_json_string(code: usize, msg: &str, data: &str) -> String {
     format!(
         "{{\"code\":{},\"msg\":\"{}\",\"data\":\"{}\"}}",
@@ -67,7 +62,7 @@ fn resp_json(
             stream.peer_addr().unwrap(),
             json_string
         ),
-        common_log,
+        log_handler,
     );
     response
         .set_body(json_string.into())
@@ -75,7 +70,7 @@ fn resp_json(
         .set_header(ACCESS_CONTROL_ALLOW_ORIGIN, ANY)
         .set_header(ACCESS_CONTROL_ALLOW_METHODS, GET_POST_OPTIONS)
         .set_header(ACCESS_CONTROL_ALLOW_HEADERS, ANY)
-        .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))        
+        .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))
         .send(&stream)
         .unwrap();
 }
@@ -95,7 +90,7 @@ fn resp_bin(
             content_type,
             status_code
         ),
-        common_log,
+        log_handler,
     );
     response
         .set_body(data)
@@ -165,7 +160,7 @@ fn decode_file_full_path(path: &str) -> String {
 }
 
 async fn file_middleware(arc_lock_controller_data: ArcRwLockControllerData) {
-    let controller_data: ControllerData = arc_lock_controller_data.write().unwrap().clone();
+    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data);
     let path: &String = controller_data.get_request().get_path();
     let extension_name: String = FileExtension::get_extension_name(path);
     let content_type: &str = FileExtension::parse(&extension_name).get_content_type();
@@ -198,7 +193,7 @@ async fn file_middleware(arc_lock_controller_data: ArcRwLockControllerData) {
 }
 
 async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
-    let controller_data: ControllerData = arc_lock_controller_data.write().unwrap().clone();
+    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data);
     let req: &Request = controller_data.get_request();
     let query: &RequestQuery = req.get_query();
     let mut response: Response = controller_data.get_response().clone();
