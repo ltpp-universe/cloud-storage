@@ -1,4 +1,4 @@
-use bin_encrypt_decrypt::*;
+use bin_encode_decode::*;
 use hyperlane::*;
 use rand::TryRngCore;
 use sha2::{Digest, Sha256};
@@ -46,8 +46,8 @@ fn get_json_string(code: usize, msg: &str, data: &str) -> String {
     )
 }
 
-fn resp_json(
-    stream: &ArcTcpStream,
+async fn resp_json(
+    stream: &ArcRwLockStream,
     response: &mut Response,
     log: &Log,
     content_type: &str,
@@ -56,39 +56,46 @@ fn resp_json(
     data: &str,
 ) {
     let json_string: String = get_json_string(code, msg, data);
+    let host: String = stream
+        .read()
+        .await
+        .peer_addr()
+        .and_then(|host| Ok(host.to_string()))
+        .unwrap_or_default();
     log.info(
-        format!(
-            "{} resp_json => {}",
-            stream.peer_addr().unwrap(),
-            json_string
-        ),
+        format!("{} resp_json => {}", host, json_string),
         log_handler,
     );
     response
-        .set_body(json_string.into())
+        .set_body(json_string)
         .set_status_code(200)
         .set_header(ACCESS_CONTROL_ALLOW_ORIGIN, ANY)
         .set_header(ACCESS_CONTROL_ALLOW_METHODS, GET_POST_OPTIONS)
         .set_header(ACCESS_CONTROL_ALLOW_HEADERS, ANY)
         .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))
         .send(&stream)
+        .await
         .unwrap();
 }
 
-fn resp_bin(
-    stream: &ArcTcpStream,
+async fn resp_bin(
+    stream: &ArcRwLockStream,
     response: &mut Response,
     log: &Log,
     status_code: usize,
     content_type: &str,
     data: Vec<u8>,
 ) {
+    let host: String = stream
+        .read()
+        .await
+        .peer_addr()
+        .and_then(|host| Ok(host.to_string()))
+        .unwrap_or_default();
     log.info(
         format!(
             "{} resp_bin => content_type:{} status_code:{}",
-            stream.peer_addr().unwrap(),
-            content_type,
-            status_code
+            host, content_type, status_code
         ),
         log_handler,
     );
@@ -100,11 +107,12 @@ fn resp_bin(
         .set_header(ACCESS_CONTROL_ALLOW_HEADERS, ANY)
         .set_header(CONTENT_TYPE, format!("{}; {}", content_type, CHARSET_UTF_8))
         .send(&stream)
+        .await
         .unwrap();
 }
 
-fn success_resp_json(
-    stream: &ArcTcpStream,
+async fn success_resp_json(
+    stream: &ArcRwLockStream,
     response: &mut Response,
     log: &Log,
     content_type: &str,
@@ -112,55 +120,44 @@ fn success_resp_json(
     data: &str,
 ) {
     println_success!("success_resp_json", " => ", msg, " ", data);
-    resp_json(stream, response, log, content_type, 1, msg, data);
+    resp_json(stream, response, log, content_type, 1, msg, data).await;
 }
 
-fn error_resp_json(
-    stream: &ArcTcpStream,
+async fn error_resp_json(
+    stream: &ArcRwLockStream,
     response: &mut Response,
     log: &Log,
     content_type: &str,
     msg: &str,
     data: &str,
 ) {
-    println_danger!("error_resp_json", " => ", msg, " ", data);
-    resp_json(stream, response, log, content_type, 0, msg, data);
+    println_error!("error_resp_json", " => ", msg, " ", data);
+    resp_json(stream, response, log, content_type, 0, msg, data).await;
 }
 
-fn success_resp_bin(
-    stream: &ArcTcpStream,
+async fn success_resp_bin(
+    stream: &ArcRwLockStream,
     response: &mut Response,
     log: &Log,
     content_type: &str,
     data: Vec<u8>,
 ) {
     println_success!("success_resp_bin", " => ", content_type);
-    resp_bin(stream, response, log, 200, content_type, data);
-}
-
-fn error_resp_bin(
-    stream: &ArcTcpStream,
-    response: &mut Response,
-    log: &Log,
-    content_type: &str,
-    data: Vec<u8>,
-) {
-    println_success!("error_resp_bin", " => ", content_type);
-    resp_bin(stream, response, log, 404, content_type, data);
+    resp_bin(stream, response, log, 200, content_type, data).await;
 }
 
 fn encode_file_full_path(path: &str) -> String {
     let (prefix, suffix) = path.rsplit_once('.').unwrap_or((path, ""));
-    format!("{}.{}", encrypt(CHARSET, prefix).unwrap(), suffix)
+    format!("{}.{}", encode(CHARSET, prefix).unwrap(), suffix)
 }
 
 fn decode_file_full_path(path: &str) -> String {
     let (prefix, suffix) = path.rsplit_once('.').unwrap_or((path, ""));
-    format!("{}.{}", decrypt(CHARSET, prefix).unwrap(), suffix)
+    format!("{}.{}", decode(CHARSET, prefix).unwrap(), suffix)
 }
 
 async fn file_middleware(arc_lock_controller_data: ArcRwLockControllerData) {
-    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data);
+    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data).await;
     let path: &String = controller_data.get_request().get_path();
     let extension_name: String = FileExtension::get_extension_name(path);
     let content_type: &str = FileExtension::parse(&extension_name).get_content_type();
@@ -172,7 +169,7 @@ async fn file_middleware(arc_lock_controller_data: ArcRwLockControllerData) {
         return;
     }
     let mut response: Response = controller_data.get_response().clone();
-    let stream: ArcTcpStream = controller_data.get_stream().clone().unwrap();
+    let stream: ArcRwLockStream = controller_data.get_stream().clone().unwrap();
     let log: &Log = controller_data.get_log();
     if file_path.contains("../") {
         return error_resp_json(
@@ -182,22 +179,19 @@ async fn file_middleware(arc_lock_controller_data: ArcRwLockControllerData) {
             content_type,
             &format!("{} unsafe", FILE_NAME_KEY),
             "",
-        );
+        )
+        .await;
     }
-    let body_res: Result<Vec<u8>, Box<dyn std::error::Error>> =
-        async_read_from_file(&file_path).await;
-    if let Ok(body) = body_res {
-        return success_resp_bin(&stream, &mut response, log, content_type, body);
-    }
-    error_resp_bin(&stream, &mut response, log, content_type, vec![]);
+    let body: Vec<u8> = async_read_from_file(&file_path).await.unwrap();
+    success_resp_bin(&stream, &mut response, log, content_type, body).await;
 }
 
 async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
-    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data);
+    let controller_data: ControllerData = get_controller_data(&arc_lock_controller_data).await;
     let req: &Request = controller_data.get_request();
     let query: &RequestQuery = req.get_query();
     let mut response: Response = controller_data.get_response().clone();
-    let stream: ArcTcpStream = controller_data.get_stream().clone().unwrap();
+    let stream: ArcRwLockStream = controller_data.get_stream().clone().unwrap();
     let file_name_opt: Option<&String> = query.get(FILE_NAME_KEY);
     let log: &Log = controller_data.get_log();
     if file_name_opt.is_none() {
@@ -208,7 +202,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             &format!("missing {}", FILE_NAME_KEY),
             "",
-        );
+        )
+        .await;
     }
     let file_name: String = replace_prefix_with_hash(&file_name_opt.unwrap());
     let file_name_path: String = format!("/{}", file_name);
@@ -220,7 +215,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             &format!("{} unsafe", FILE_NAME_KEY),
             "",
-        );
+        )
+        .await;
     }
     let extension_name: String = FileExtension::get_extension_name(&file_name_path);
     let content_type: &str = FileExtension::parse(&extension_name).get_content_type();
@@ -232,7 +228,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             "file type not supported",
             "",
-        );
+        )
+        .await;
     }
     let file_data: &Vec<u8> = req.get_body();
     let file_data_len: usize = file_data.len();
@@ -244,7 +241,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             "file can not empty",
             "",
-        );
+        )
+        .await;
     }
     if file_data_len > FILE_MAX_SIZE {
         return error_resp_json(
@@ -254,7 +252,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             &format!("file size over {} bytes", FILE_MAX_SIZE),
             "",
-        );
+        )
+        .await;
     }
     let full_path: String = get_file_full_path(&file_name_path).await;
     if metadata(&full_path).await.is_ok() {
@@ -265,7 +264,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             "file already exist",
             "",
-        );
+        )
+        .await;
     }
     let write_res: Result<(), std::io::Error> = async_write_to_file(&full_path, file_data).await;
     if let Err(err) = write_res {
@@ -276,7 +276,8 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
             APPLICATION_JSON,
             &format!("{:?}", err),
             "",
-        );
+        )
+        .await;
     }
     let encode_full_path: String = encode_file_full_path(&full_path);
     let encode_full_url: String = format!("{}/{}", PROTOCOL_DOMAIN_NAME, encode_full_path);
@@ -287,17 +288,18 @@ async fn add_file(arc_lock_controller_data: ArcRwLockControllerData) {
         APPLICATION_JSON,
         "ok",
         &encode_full_url,
-    );
+    )
+    .await;
 }
 
 async fn run_server() {
     let mut server: Server = Server::new();
-    server.host("0.0.0.0");
-    server.port(60006);
-    server.log_dir(LOG_DIR);
-    server.async_middleware(file_middleware).await;
-    server.async_router("/add_file", add_file).await;
-    server.listen();
+    server.host("0.0.0.0").await;
+    server.port(60006).await;
+    server.log_dir(LOG_DIR).await;
+    server.middleware(file_middleware).await;
+    server.router("/add_file", add_file).await;
+    server.listen().await;
 }
 
 #[tokio::main]
