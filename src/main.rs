@@ -270,7 +270,7 @@ async fn add_file(arc_lock_controller_data: ControllerData) {
 async fn run_server() {
     let mut server: Server = Server::new();
     server.host("0.0.0.0").await;
-    server.port(60000).await;
+    server.port(60006).await;
     server.log_dir(LOG_DIR).await;
     server.request_middleware(file_middleware).await;
     server.router("/", index_file).await;
