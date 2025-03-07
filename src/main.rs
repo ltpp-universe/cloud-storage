@@ -7,7 +7,7 @@ use tokio::fs::metadata;
 
 static FILE_DIR: &str = "/home/cloud_storage/file";
 static LOG_DIR: &str = "/home/cloud_storage/logs";
-static FILE_MAX_SIZE: usize = 4_000_194_304;
+static FILE_MAX_SIZE: usize = 1_048_576;
 static CHARSET: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_=";
 static PROTOCOL_DOMAIN_NAME: &str = "";
 static FILE_NAME_KEY: &str = "file_name";
