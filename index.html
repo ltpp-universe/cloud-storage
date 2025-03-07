@@ -359,9 +359,7 @@
                 var start = performance.now();
                 var buffer = await file.arrayBuffer();
                 var res = await fetch(
-                  `https://file.ltpp.vip/add_file?file_name=${encodeURIComponent(
-                    file.name
-                  )}`,
+                  `/add_file?file_name=${encodeURIComponent(file.name)}`,
                   {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/octet-stream' },
